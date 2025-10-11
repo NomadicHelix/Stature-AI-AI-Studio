@@ -12,7 +12,7 @@ export class GenerationError extends Error {
 
 // Fix: Adhere to Gemini API initialization guideline.
 // The API key MUST be obtained exclusively from the environment variable `process.env.API_KEY`.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const fileToGenerativePart = async (file: File) => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {

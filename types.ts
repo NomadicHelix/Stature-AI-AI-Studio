@@ -26,19 +26,27 @@ export enum AppStep {
   GALLERY = 'GALLERY',
 }
 
-export type View = 'LANDING' | 'GENERATOR' | 'LOGIN' | 'ADMIN' | 'ACCOUNT' | 'PRIVACY' | 'TERMS';
+export type View = 'LANDING' | 'GENERATOR' | 'LOGIN' | 'SIGNUP' | 'ADMIN' | 'ACCOUNT' | 'PRIVACY' | 'TERMS' | 'PAYMENT';
 
 export type Package = 'STARTER' | 'PRO';
 
 export interface User {
-  credits: number;
-  name: string;
+  uid: string;
   email: string;
+  displayName?: string | null;
+  photoURL?: string | null;
+  role: 'user' | 'admin';
+  credits: number;
+  createdAt: Date | string;
+  name?: string;
 }
 
 export interface Order {
     id: string;
-    date: string;
-    description: string;
-    amount: string;
+    uid: string;
+    package: Package;
+    amount: number;
+    status: 'in progress' | 'completed' | 'cancelled';
+    createdAt: Date | string;
+    paymentId: string;
 }

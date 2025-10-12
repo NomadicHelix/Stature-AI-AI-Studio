@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -10,6 +9,9 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+
+// This is the standard, correct way to render a React application.
+// All complex, failed initialization logic has been removed.
 root.render(
   <React.StrictMode>
     <App />

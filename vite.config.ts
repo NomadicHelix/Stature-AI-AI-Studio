@@ -5,21 +5,13 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
-    
-    // This port MUST match the port configured in firebase.json
-    const functionsPort = 5001;
-    const functionsHost = 'localhost';
 
     return {
+      // The server configuration is now simplified to allow
+      // Firebase Studio's integrated proxy to handle API requests.
       server: {
-        port: 3000, 
+        port: 3000,
         host: '0.0.0.0',
-        proxy: {
-          '/api': {
-            target: `http://${functionsHost}:${functionsPort}`,
-            changeOrigin: true,
-          },
-        }
       },
       plugins: [react(), tailwindcss()],
       define: {

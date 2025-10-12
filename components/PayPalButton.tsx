@@ -1,57 +1,53 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
+import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
+import type { OnApproveData, OnErrorActions } from "@paypal/paypal-js";
+import Spinner from './Spinner';
 
 interface PayPalButtonProps {
     amount: string;
-    onSuccess: (details: any, data: any) => void;
+    onSuccess: (details: any, data: OnApproveData) => void;
     onError: (err: any) => void;
 }
 
-const PayPalButton: React.FC<PayPalButtonProps> = ({ amount, onSuccess, onError }) => {
-    const paypalRef = useRef<HTMLDivElement>(null);
+const PayPalButtonWrapper: React.FC<PayPalButtonProps> = ({ amount, onSuccess, onError }) => {
+    const [{ isPending }] = usePayPalScriptReducer();
 
-    useEffect(() => {
-        if (!window.paypal) {
-            onError("PayPal SDK not loaded.");
-            return;
-        }
-        if (paypalRef.current) {
-            // Clear out the button container on re-render
-            paypalRef.current.innerHTML = '';
-            
-            try {
-                window.paypal.Buttons({
-                    createOrder: (data: any, actions: any) => {
-                        return actions.order.create({
-                            purchase_units: [{
-                                amount: {
-                                    value: amount,
-                                },
-                            }],
-                        });
-                    },
-                    onApprove: async (data: any, actions: any) => {
-                        const details = await actions.order.capture();
-                        onSuccess(details, data);
-                    },
-                    onError: (err: any) => {
-                        onError(err);
-                    },
-                }).render(paypalRef.current);
-            } catch (error) {
-                onError(error);
-            }
-        }
-    }, [amount, onSuccess, onError]);
+    const createOrder = (data: any, actions: any) => {
+        return actions.order.create({
+            purchase_units: [{
+                amount: {
+                    value: amount,
+                },
+            }],
+        });
+    };
 
-    return <div ref={paypalRef}></div>;
+    const onApprove = (data: OnApproveData, actions: any) => {
+        return actions.order.capture().then((details: any) => {
+            onSuccess(details, data);
+        });
+    };
+
+    const handleError = (err: any) => {
+        onError(err);
+    };
+
+    if (isPending) {
+        return (
+            <div className="flex justify-center items-center h-12">
+                <Spinner />
+            </div>
+        );
+    }
+
+    return (
+        <PayPalButtons
+            style={{ layout: "vertical", color: 'gold', shape: 'rect', label: 'paypal' }}
+            createOrder={createOrder}
+            onApprove={onApprove}
+            onError={handleError}
+        />
+    );
 };
 
-// Add this to your types.ts or a global declaration file if you haven't already
-declare global {
-    interface Window {
-        paypal: any;
-    }
-}
-
-
-export default PayPalButton;
+export default PayPalButtonWrapper;

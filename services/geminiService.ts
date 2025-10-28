@@ -2,7 +2,6 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { STYLES } from '../constants';
 import type { HeadshotStyle } from '../types';
 
-// Custom error for more specific feedback to the user.
 export class GenerationError extends Error {
   constructor(message: string) {
     super(message);
@@ -10,8 +9,6 @@ export class GenerationError extends Error {
   }
 }
 
-// Fix: Adhere to Gemini API initialization guideline.
-// The API key MUST be obtained exclusively from the environment variable `process.env.API_KEY`.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const fileToGenerativePart = async (file: File) => {
@@ -26,12 +23,18 @@ const fileToGenerativePart = async (file: File) => {
 };
 
 export const suggestStyle = async (profession: string): Promise<HeadshotStyle | null> => {
-  // Fix: Removed unnecessary API_KEY check. The app should handle missing keys at a higher level or assume it's set.
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Based on the following profession or description, which of these headshot styles would be most appropriate? Profession: "${profession}". Available styles: Corporate, Creative, Casual, Dramatic. Respond with only the name of the best style.`,
     });
+    
+    // Gold Standard Fix: Handle cases where the model might not return text.
+    if (!response.text) {
+        console.error("Style suggestion returned no text.");
+        return null;
+    }
+
     const suggestedStyleName = response.text.trim().toLowerCase();
     const foundStyle = STYLES.find(style => style.name.toLowerCase() === suggestedStyleName);
     return foundStyle || null;
@@ -74,52 +77,38 @@ export const generateHeadshots = async (files: File[], style: HeadshotStyle, cou
             negativePrompt += "\n- AVOID nose rings or other facial piercings. Earrings are acceptable.";
         }
         
-        const fullPrompt = `
-        ${basePrompt} 
-        ${qualityEnhancers} 
-        ${negativePrompt}`;
+        const fullPrompt = `${basePrompt} ${qualityEnhancers} ${negativePrompt}`;
         
         try {
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
-                contents: {
-                    parts: [
-                        ...imageParts,
-                        { text: fullPrompt }
-                    ],
-                },
-                config: {
-                    responseModalities: [Modality.IMAGE, Modality.TEXT],
-                },
+                contents: { parts: [ ...imageParts, { text: fullPrompt } ] },
+                config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
             });
 
-            // Fix: Added optional chaining for safer access to response properties.
             for (const part of response.candidates?.[0]?.content?.parts || []) {
                 if (part.inlineData) {
-                    const base64ImageBytes: string = part.inlineData.data;
-                    const imageUrl = `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-                    return imageUrl; // Return the first and only image
+                    // Gold Standard Fix: Allow TypeScript to infer the type as string | undefined
+                    const base64ImageBytes = part.inlineData.data;
+                    if (base64ImageBytes) {
+                        return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+                    }
                 }
             }
-             return null; // No image returned from a successful call
+             return null;
         } catch (error) {
             console.error("A single image generation failed:", error);
-            // In case of a single failure, we return null and let the calling context handle it.
             return null;
         }
     };
     
-    // Create an array of promises, one for each requested image.
     const generationPromises: Promise<string | null>[] = [];
     for (let i = 0; i < count; i++) {
         generationPromises.push(generateSingleImage(removePiercings));
     }
 
-    // Execute all promises in parallel.
     try {
         const results = await Promise.all(generationPromises);
-        
-        // Filter out any null results from failed generations.
         const successfulImages = results.filter((img): img is string => img !== null);
 
         if (successfulImages.length === 0 && count > 0) {
@@ -130,11 +119,7 @@ export const generateHeadshots = async (files: File[], style: HeadshotStyle, cou
 
     } catch (error) {
         console.error("Error generating headshots batch:", error);
-
-        if (error instanceof GenerationError) {
-            throw error; // Re-throw custom errors
-        }
-        
+        if (error instanceof GenerationError) throw error;
         throw new GenerationError('An unexpected error occurred while generating headshots. Please check your connection and try again.');
     }
 };

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const PrivacyPage = () => (
     <div className="container mx-auto px-6 py-12 text-gray-300 max-w-4xl">
         <h1 className="text-4xl font-bold text-white mb-6">Privacy Policy</h1>

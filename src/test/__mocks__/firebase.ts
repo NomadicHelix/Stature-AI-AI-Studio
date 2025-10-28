@@ -10,7 +10,7 @@ export const initializeApp = vi.fn(() => ({}));
 
 // --- Firebase Auth ---
 export const getAuth = vi.fn(() => ({}));
-export const onAuthStateChanged = vi.fn((auth, callback) => {
+export const onAuthStateChanged = vi.fn((_auth, callback) => { // Mark 'auth' as unused
   callback(null); // Default mock: user is logged out.
   return () => {}; // Return a mock unsubscribe function.
 });
@@ -29,7 +29,7 @@ export const setDoc = vi.fn(() => Promise.resolve());
 // --- App Check ---
 export const initializeAppCheck = vi.fn(() => ({}));
 export const ReCaptchaV3Provider = vi.fn(() => ({}));
-export const DebugAppCheckProvider = vi.fn(() => ({})); // Now correctly mocked
+export const DebugAppCheckProvider = vi.fn(() => ({}));
 
 // --- Analytics ---
 export const getAnalytics = vi.fn(() => ({}));

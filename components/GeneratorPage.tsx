@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { UploadFile, HeadshotStyle, GeneratedImage, Package, User } from '../types';
 import { AppStep } from '../types';
 import { STYLES } from '../constants';
-import { suggestStyle, generateHeadshots, GenerationError } from '../services/geminiService';
-import { ArrowRightIcon, DownloadIcon, HeartIcon, SparklesIcon, UploadIcon, CheckCircleIcon, XCircleIcon, StyleGridIcon } from './Icons';
+import { suggestStyle, generateHeadshots } from '../services/geminiService';
+import { ArrowRightIcon, DownloadIcon, HeartIcon, SparklesIcon, UploadIcon, CheckCircleIcon, XCircleIcon } from './Icons';
 import Spinner from './Spinner';
 import { getErrorMessage } from '../utils';
 

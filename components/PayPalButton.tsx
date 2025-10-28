@@ -1,6 +1,5 @@
-import React from 'react';
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
-import type { OnApproveData, OnErrorActions } from "@paypal/paypal-js";
+import type { OnApproveData } from "@paypal/paypal-js";
 import Spinner from './Spinner';
 
 interface PayPalButtonProps {
@@ -12,7 +11,7 @@ interface PayPalButtonProps {
 const PayPalButtonWrapper: React.FC<PayPalButtonProps> = ({ amount, onSuccess, onError }) => {
     const [{ isPending }] = usePayPalScriptReducer();
 
-    const createOrder = (data: any, actions: any) => {
+    const createOrder = (_data: any, actions: any) => { // data is unused, marked with _
         return actions.order.create({
             purchase_units: [{
                 amount: {

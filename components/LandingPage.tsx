@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ArrowRightIcon, UploadIcon, StyleGridIcon } from './Icons';
 import PricingPage from './PricingPage';
 import { LANDING_GALLERY_IMAGES } from '../constants';
@@ -7,9 +7,23 @@ import type { Package } from '../types';
 interface LandingPageProps {
     onGetStarted: () => void;
     onPlanSelected: (pkg: Package) => void;
+    scrollTarget?: string | null;
+    onScrollComplete: () => void;
+
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onPlanSelected }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onPlanSelected, scrollTarget, onScrollComplete }) => {
+
+    useEffect(() => {
+        if (scrollTarget) {
+            const element = document.getElementById(scrollTarget);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+            onScrollComplete();
+        }
+    }, [scrollTarget, onScrollComplete]);
+
   return (
     <div className="w-full">
       {/* Hero Section */}

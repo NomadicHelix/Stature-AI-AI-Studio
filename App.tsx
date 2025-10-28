@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import { useState, useEffect } from 'react';
 import type { View, Package, User } from './types';
 import { auth, db } from './firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -6,10 +7,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getErrorMessage } from './utils';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
-// ============================================================================
-//  COMPONENT IMPORTS
-//  All page and layout components are imported here.
-// ============================================================================
+// COMPONENT IMPORTS
 import LandingPage from './components/LandingPage';
 import AuthForm from './components/AuthForm';
 import GeneratorPage from './components/GeneratorPage';
@@ -22,8 +20,6 @@ import Spinner from './components/Spinner';
 
 // ============================================================================
 //  CORE APP LOGIC (AppContent)
-//  This component contains all state, handlers, and rendering logic.
-//  IT MUST NOT BE DELETED.
 // ============================================================================
 const AppContent = () => {
     const [view, setView] = useState<View>('LANDING');
@@ -32,19 +28,23 @@ const AppContent = () => {
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
     const [paymentError, setPaymentError] = useState<string | null>(null);
+    const [appError, setAppError] = useState<string | null>(null);
+    const [scrollTarget, setScrollTarget] = useState<string | null>(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setIsAuthLoading(true);
+            setAppError(null);
             try {
                 if (firebaseUser) {
                     const userDocRef = doc(db, "users", firebaseUser.uid);
                     const userDoc = await getDoc(userDocRef);
                     const tokenResult = await firebaseUser.getIdTokenResult(true);
-
                     if (userDoc.exists()) {
                         const userData = userDoc.data() as User;
-                        setUser({ ...userData, role: tokenResult.claims.role || 'user' });
+                        const claimRole = tokenResult.claims.role;
+                        const role: 'user' | 'admin' = (claimRole === 'admin' || claimRole === 'user') ? claimRole : 'user';
+                        setUser({ ...userData, role });
                     } else {
                         const newUser: User = { uid: firebaseUser.uid, email: firebaseUser.email!, role: 'user', credits: 0, createdAt: new Date() };
                         await setDoc(userDocRef, newUser);
@@ -56,7 +56,8 @@ const AppContent = () => {
                     setIsLoggedIn(false);
                 }
             } catch (error) {
-                setPaymentError(getErrorMessage(error)); // Use paymentError state for critical auth errors
+                console.error("Critical Authentication Error:", error);
+                setAppError(getErrorMessage(error));
             } finally {
                 setIsAuthLoading(false);
             }
@@ -64,68 +65,73 @@ const AppContent = () => {
         return () => unsubscribe();
     }, []);
 
-    const getToken = async () => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) throw new Error("Authentication required.");
-        return await currentUser.getIdToken();
+    const handleNavigate = (targetView: View, targetId?: string) => {
+        setView(targetView);
+        if (targetId) {
+            // We need to set the view first, then the scroll target.
+            // The actual scrolling will be handled by the LandingPage component.
+            setTimeout(() => setScrollTarget(targetId), 0);
+        }
     };
 
-    const handleLogout = async () => {
-        await signOut(auth);
-        setView('LANDING');
-    };
-    
-    const handleAuthSuccess = () => setView('GENERATOR');
-    const handleGetStarted = () => setView(isLoggedIn ? 'GENERATOR' : 'LOGIN');
-    const handlePlanSelected = (pkg: Package) => {
-        setSelectedPackage(pkg);
-        setView(isLoggedIn ? 'PAYMENT' : 'LOGIN');
-    };
-
-    const handlePaymentSuccess = async (details: any, data: any) => {
+    const handleLogout = async () => { await signOut(auth); handleNavigate('LANDING'); };
+    const handleAuthSuccess = () => handleNavigate('GENERATOR');
+    const handleGetStarted = () => handleNavigate(isLoggedIn ? 'GENERATOR' : 'LOGIN');
+    const handlePlanSelected = (pkg: Package) => { setSelectedPackage(pkg); handleNavigate(isLoggedIn ? 'PAYMENT' : 'LOGIN'); };
+    const handlePaymentError = (err: any) => { console.error("PayPal Error:", err); setPaymentError(getErrorMessage(err)); };
+    const handlePaymentSuccess = async (_details: any, data: any) => {
         setPaymentError(null);
         try {
-            const token = await getToken();
+            const token = await auth.currentUser?.getIdToken();
             const response = await fetch('/api/createOrder', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ packageType: selectedPackage, paymentDetails: { orderID: data.orderID } })
             });
-
             if (!response.ok) {
-                const errorBody = await response.json().catch(() => ({ error: "An unknown error occurred during payment processing." }));
+                const errorBody = await response.json().catch(() => ({ error: "An unknown error occurred." }));
                 throw new Error(errorBody.error);
             }
-            
             if (user) {
                 const creditsToAdd = selectedPackage === 'STARTER' ? 20 : 100;
                 setUser({ ...user, credits: user.credits + creditsToAdd });
             }
-            setView('GENERATOR');
+            handleNavigate('GENERATOR');
         } catch (err: any) {
             setPaymentError(getErrorMessage(err));
         }
     };
-    
-    const handlePaymentError = (err: any) => {
-        console.error("PayPal Error:", err);
-        setPaymentError(getErrorMessage(err));
-    };
+
+    const onScrollComplete = () => {
+        setScrollTarget(null);
+    }
 
     const renderContent = () => {
         if (isAuthLoading) return <div className="flex-grow flex items-center justify-center"><Spinner size="12" /></div>;
+        if (appError) {
+            return (
+               <div className="flex-grow flex items-center justify-center text-center">
+                   <div>
+                       <h2 className="text-2xl font-bold text-red-400 mb-4">A Critical Error Occurred</h2>
+                       <p className="mb-6 text-gray-400">{appError}</p>
+                       <button onClick={() => window.location.reload()} className="bg-brand-primary text-brand-dark font-semibold py-2 px-5 rounded-lg hover:bg-brand-secondary">
+                           Refresh Application
+                       </button>
+                   </div>
+               </div>
+           );
+       }
         if (paymentError) {
              return (
                 <div className="text-center py-20">
                     <h2 className="text-2xl font-bold text-red-400 mb-4">An Error Occurred</h2>
                     <p className="mb-6 text-gray-400">{paymentError}</p>
-                    <button onClick={() => { setPaymentError(null); setView('LANDING'); }} className="text-brand-primary hover:underline">Return to Homepage</button>
+                    <button onClick={() => { setPaymentError(null); handleNavigate('LANDING'); }} className="text-brand-primary hover:underline">Return to Homepage</button>
                 </div>
             );
         }
-
         switch (view) {
-            case 'LANDING': return <LandingPage onGetStarted={handleGetStarted} onPlanSelected={handlePlanSelected} />;
+            case 'LANDING': return <LandingPage onGetStarted={handleGetStarted} onPlanSelected={handlePlanSelected} scrollTarget={scrollTarget} onScrollComplete={onScrollComplete} />;
             case 'LOGIN': return <AuthForm isLogin={true} setView={setView} onAuthSuccess={handleAuthSuccess} />;
             case 'SIGNUP': return <AuthForm isLogin={false} setView={setView} onAuthSuccess={handleAuthSuccess} />;
             case 'GENERATOR': return <GeneratorPage user={user} userPackage={selectedPackage} />;
@@ -134,31 +140,28 @@ const AppContent = () => {
             case 'PAYMENT': return <PaymentPage selectedPackage={selectedPackage!} onPaymentSuccess={handlePaymentSuccess} onPaymentError={handlePaymentError} setView={setView} />;
             case 'PRIVACY': return <PrivacyPage />;
             case 'TERMS': return <TermsPage />;
-            default: return <LandingPage onGetStarted={handleGetStarted} onPlanSelected={handlePlanSelected} />;
+            default: return <LandingPage onGetStarted={handleGetStarted} onPlanSelected={handlePlanSelected} scrollTarget={scrollTarget} onScrollComplete={onScrollComplete} />;
         }
     };
 
     return (
         <div className="bg-brand-dark min-h-screen font-sans text-white flex flex-col">
-            <Header currentView={view} setView={setView} isLoggedIn={isLoggedIn} onLogout={handleLogout} user={user} />
+            <Header currentView={view} onNavigate={handleNavigate} isLoggedIn={isLoggedIn} onLogout={handleLogout} user={user} />
             <main className="flex-grow container mx-auto px-6">{renderContent()}</main>
             <Footer setView={setView} />
         </div>
     );
 };
 
-
 // ============================================================================
 //  ROOT COMPONENT (App)
-//  This component's only job is to provide the PayPal context.
 // ============================================================================
 export default function App() {
   const initialOptions = {
-    "client-id": "AT79x4v24KXLI-ROB8BLiKCZEOXR511J34tl0jhZZuat2i3hmfooIgyFDMNGN2c-iLAWIfapEL1CNtYM",
+    "clientId": "AT79x4v24KXLI-ROB8BLiKCZEOXR511J34tl0jhZZuat2i3hmfooIgyFDMNGN2c-iLAWIfapEL1CNtYM",
     currency: "USD",
     intent: "capture",
   };
-
   return (
     <PayPalScriptProvider options={initialOptions}>
       <AppContent />

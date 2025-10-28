@@ -1,5 +1,4 @@
-import React from 'react';
-import type { View, User } from './types';
+import type { View, User } from '../types';
 import { UserCircleIcon } from './Icons';
 
 export const Logo = () => (
@@ -16,10 +15,10 @@ export const Logo = () => (
     </div>
 );
 
-export const Header = ({ currentView, setView, isLoggedIn, onLogout, user }: { currentView: View; setView: (view: View) => void; isLoggedIn: boolean; onLogout: () => void; user: User | null }) => (
+export const Header = ({ currentView, onNavigate, isLoggedIn, onLogout, user }: { currentView: View; onNavigate: (view: View, targetId?: string) => void; isLoggedIn: boolean; onLogout: () => void; user: User | null }) => (
     <header className="bg-brand-dark/80 backdrop-blur-sm sticky top-0 z-50">
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
-            <button onClick={() => setView('LANDING')} className="text-2xl font-bold text-white tracking-wider cursor-pointer">
+            <button onClick={() => onNavigate('LANDING')} className="text-2xl font-bold text-white tracking-wider cursor-pointer">
                 <Logo />
             </button>
             <div className="flex items-center space-x-6">
@@ -27,20 +26,14 @@ export const Header = ({ currentView, setView, isLoggedIn, onLogout, user }: { c
                     href="#pricing" 
                     onClick={(e) => {
                         e.preventDefault();
-                        const pricingSection = document.getElementById('pricing');
-                        if (currentView !== 'LANDING') {
-                            setView('LANDING');
-                            setTimeout(() => pricingSection?.scrollIntoView({ behavior: 'smooth' }), 100);
-                        } else {
-                            pricingSection?.scrollIntoView({ behavior: 'smooth' });
-                        }
+                        onNavigate('LANDING', 'pricing');
                     }}
                     className="text-lg font-medium transition-colors text-gray-300 hover:text-white"
                 >
                     Pricing
                 </a>
                 <button 
-                    onClick={() => setView('GENERATOR')}
+                    onClick={() => onNavigate('GENERATOR')}
                     className={`text-lg font-medium transition-colors ${currentView === 'GENERATOR' ? 'text-brand-primary' : 'text-gray-300 hover:text-white'}`}
                 >
                     Dashboard
@@ -48,14 +41,14 @@ export const Header = ({ currentView, setView, isLoggedIn, onLogout, user }: { c
                  {isLoggedIn ? (
                     <>
                         <button 
-                            onClick={() => setView('ACCOUNT')}
+                            onClick={() => onNavigate('ACCOUNT')}
                             className={`flex items-center gap-2 text-lg font-medium transition-colors ${currentView === 'ACCOUNT' ? 'text-brand-primary' : 'text-gray-300 hover:text-white'}`}
                         >
                            <UserCircleIcon className="w-6 h-6" /> Account
                         </button>
                         {user?.role === 'admin' && (
                              <button 
-                                onClick={() => setView('ADMIN')}
+                                onClick={() => onNavigate('ADMIN')}
                                 className={`text-lg font-medium transition-colors ${currentView === 'ADMIN' ? 'text-brand-primary' : 'text-gray-300 hover:text-white'}`}
                             >
                                 Admin
@@ -66,7 +59,7 @@ export const Header = ({ currentView, setView, isLoggedIn, onLogout, user }: { c
                         </button>
                     </>
                 ) : (
-                    <button onClick={() => setView('LOGIN')} className="bg-brand-primary text-brand-dark font-semibold py-2 px-5 rounded-lg hover:bg-brand-secondary transition-transform transform hover:scale-105">
+                    <button onClick={() => onNavigate('LOGIN')} className="bg-brand-primary text-brand-dark font-semibold py-2 px-5 rounded-lg hover:bg-brand-secondary transition-transform transform hover:scale-105">
                         Login
                     </button>
                 )}

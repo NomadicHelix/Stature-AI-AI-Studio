@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { User, Order } from '../types';
 import { auth } from '../firebaseConfig';
 import { getErrorMessage } from '../utils';

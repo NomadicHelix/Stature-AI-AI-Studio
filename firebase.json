@@ -7,5 +7,10 @@
       "**/node_modules/**"
     ]
   },
-  "apphosting": {}
+  "apphosting": {
+    "backendId": "stature-ai",
+    "region": "us-central1",
+    "source": ".",
+    "alwaysDeployFromSource": true
+  }
 }

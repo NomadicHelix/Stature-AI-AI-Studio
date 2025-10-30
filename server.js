@@ -1,36 +1,22 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-const express = require("express");
-const cors = require("cors");
+import express from 'express';
+import cors from 'cors';
+import admin from 'firebase-admin';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
+// Initialize Firebase Admin SDK
+// You'll need to set up service account credentials in your environment
 admin.initializeApp();
 
-// Auth Trigger (v1)
-exports.onUserCreate = functions.auth.user().onCreate(async (user) => {
-    const { uid, email, displayName, photoURL } = user;
-    try {
-        const listUsersResult = await admin.auth().listUsers(1);
-        const isFirstUser = listUsersResult.users.length === 1;
-        const role = isFirstUser ? 'admin' : 'user';
-
-        await admin.auth().setCustomUserClaims(uid, { role, admin: isFirstUser });
-
-        await admin.firestore().collection('users').doc(uid).set({
-            uid, email, displayName, photoURL, role, credits: 0, createdAt: new Date().toISOString(),
-        });
-    } catch (error) {
-        console.error("Error in onUserCreate trigger:", error);
-    }
-});
-
-// Express API (v1)
 const app = express();
-app.use(cors({ origin: true }));
+const port = process.env.PORT || 8080;
 
-// Health Check Endpoint
-app.get('/status', (req, res) => {
-    res.status(200).json({ status: 'ok' });
-});
+app.use(cors({ origin: true }));
+app.use(express.json()); // Middleware to parse JSON bodies
+
+// ============================================================================
+//  API Middleware
+// ============================================================================
 
 const verifyUser = async (req, res, next) => {
     const idToken = req.headers.authorization?.split("Bearer ")[1];
@@ -59,7 +45,17 @@ const verifyAdmin = async (req, res, next) => {
     }
 };
 
-app.post('/createOrder', verifyUser, async (req, res) => {
+// ============================================================================
+//  API Routes
+// ============================================================================
+
+const apiRouter = express.Router();
+
+apiRouter.get('/status', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
+apiRouter.post('/createOrder', verifyUser, async (req, res) => {
     console.log("Received order creation request:", req.body);
     try {
         const { packageType, paymentDetails } = req.body;
@@ -90,7 +86,7 @@ app.post('/createOrder', verifyUser, async (req, res) => {
     }
 });
 
-app.get('/users', verifyAdmin, async (_req, res) => {
+apiRouter.get('/users', verifyAdmin, async (req, res) => {
     console.log("Attempting to fetch users...");
     try {
         const listUsersResult = await admin.auth().listUsers(1000);
@@ -102,7 +98,7 @@ app.get('/users', verifyAdmin, async (_req, res) => {
     }
 });
 
-app.post('/setAdmin', verifyAdmin, async (req, res) => {
+apiRouter.post('/setAdmin', verifyAdmin, async (req, res) => {
     console.log("Attempting to set admin:", req.body);
     try {
         const { uid } = req.body;
@@ -117,4 +113,27 @@ app.post('/setAdmin', verifyAdmin, async (req, res) => {
     }
 });
 
-exports.api = functions.https.onRequest(app);
+app.use('/api', apiRouter);
+
+// ============================================================================
+//  Serve Frontend
+// ============================================================================
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const staticDir = path.join(__dirname, 'dist');
+
+app.use(express.static(staticDir));
+
+// For any other request, serve the index.html file
+app.get('*', (req, res) => {
+    res.sendFile(path.join(staticDir, 'index.html'));
+});
+
+// ============================================================================
+//  Start Server
+// ============================================================================
+
+app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+});

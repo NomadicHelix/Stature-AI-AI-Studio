@@ -1,5 +1,5 @@
 // src/test/__mocks__/firebase.ts
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // This file provides a centralized, global mock for all Firebase services.
 // It is used by the vitest.config.ts alias to replace real Firebase imports
@@ -10,13 +10,18 @@ export const initializeApp = vi.fn(() => ({}));
 
 // --- Firebase Auth ---
 export const getAuth = vi.fn(() => ({}));
-export const onAuthStateChanged = vi.fn((_auth, callback) => { // Mark 'auth' as unused
+export const onAuthStateChanged = vi.fn((_auth, callback) => {
+  // Mark 'auth' as unused
   callback(null); // Default mock: user is logged out.
   return () => {}; // Return a mock unsubscribe function.
 });
 export const signOut = vi.fn(() => Promise.resolve());
-export const createUserWithEmailAndPassword = vi.fn(() => Promise.resolve({ user: {} }));
-export const signInWithEmailAndPassword = vi.fn(() => Promise.resolve({ user: {} }));
+export const createUserWithEmailAndPassword = vi.fn(() =>
+  Promise.resolve({ user: {} }),
+);
+export const signInWithEmailAndPassword = vi.fn(() =>
+  Promise.resolve({ user: {} }),
+);
 export const signInWithPopup = vi.fn(() => Promise.resolve({ user: {} }));
 export const GoogleAuthProvider = vi.fn(() => ({}));
 

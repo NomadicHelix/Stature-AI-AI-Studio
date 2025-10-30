@@ -12,7 +12,7 @@ const firebaseConfig = {
   messagingSenderId: "677736743491",
   // This appId has been restored to its correct, valid format.
   appId: "1:677736743491:web:ca7f2a983f09d28c274af6",
-  measurementId: "G-8TGSXXWC6Q"
+  measurementId: "G-8TGSXXWC6Q",
 };
 
 // Initialize Firebase

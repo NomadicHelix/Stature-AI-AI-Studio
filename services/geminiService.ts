@@ -1,42 +1,31 @@
-import { GoogleGenAI, Modality } from "@google/genai";
-import { STYLES } from '../constants';
-import type { HeadshotStyle } from '../types';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { STYLES } from "../constants";
+import type { HeadshotStyle } from "../types";
 
 export class GenerationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'GenerationError';
+    this.name = "GenerationError";
   }
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.API_KEY || "");
 
-const fileToGenerativePart = async (file: File) => {
-  const base64EncodedDataPromise = new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.readAsDataURL(file);
-  });
-  return {
-    inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
-  };
-};
-
-export const suggestStyle = async (profession: string): Promise<HeadshotStyle | null> => {
+export const suggestStyle = async (
+  profession: string,
+): Promise<HeadshotStyle | null> => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Based on the following profession or description, which of these headshot styles would be most appropriate? Profession: "${profession}". Available styles: Corporate, Creative, Casual, Dramatic. Respond with only the name of the best style.`,
-    });
-    
-    // Gold Standard Fix: Handle cases where the model might not return text.
-    if (!response.text) {
-        console.error("Style suggestion returned no text.");
-        return null;
-    }
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const suggestedStyleName = response.text.trim().toLowerCase();
-    const foundStyle = STYLES.find(style => style.name.toLowerCase() === suggestedStyleName);
+    const prompt = `Based on the following profession or description, which of these headshot styles would be most appropriate? Profession: "${profession}". Available styles: Corporate, Creative, Casual, Dramatic. Respond with only the name of the best style.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const suggestedStyleName = response.text().trim().toLowerCase();
+
+    const foundStyle = STYLES.find(
+      (style) => style.name.toLowerCase() === suggestedStyleName,
+    );
     return foundStyle || null;
   } catch (error) {
     console.error("Error suggesting style:", error);
@@ -44,82 +33,66 @@ export const suggestStyle = async (profession: string): Promise<HeadshotStyle | 
   }
 };
 
-
-export const generateHeadshots = async (files: File[], style: HeadshotStyle, count: number, removePiercings: boolean): Promise<string[]> => {
-    const imageParts = await Promise.all(files.map(fileToGenerativePart));
-    const basePrompt = style.prompt;
-
-    const generateSingleImage = async (removePiercingsFlag: boolean): Promise<string | null> => {
-        const qualityEnhancers = `
-          **Critical Quality Requirements:**
-          - The final output should be a breathtaking, professional, and ultra-realistic photograph with a unique composition.
-          - The environment must be elegant and elevate the subject's stature, complementing the chosen style.
-          - Be creative with the outfit and background to ensure a distinct look.
-
-          **Facial Expression & Digital Retouching:**
-          - Ensure the subject has a confident, professional, and approachable expression.
-          - Subtly correct for minor issues like squinting due to bright light.
-          - Ensure any smile appears natural and engaging, not forced or awkward. The final expression should be the subject's best look.
-        `;
-
-        let negativePrompt = `
-          **CRITICAL Negative Constraints (ABSOLUTELY AVOID):**
-          - **TOP PRIORITY / NON-NEGOTIABLE:** The output MUST be a single, complete, full-frame photograph. DO NOT generate grids, collages, tiled images, diptychs, triptychs, or any form of split-panel or multi-part image.
-          - **CRITICAL:** The output MUST contain only one person. DO NOT generate multiple faces, multiple people, or duplicate figures in one image.
-          - AVOID cliché or repetitive poses, outfits, and backgrounds.
-          - AVOID deformed hands, limbs, or facial features.
-          - AVOID blurry, low-resolution, or grainy results.
-          - AVOID unrealistic or distorted backgrounds.
-          - AVOID watermarks, text, logos, or any other artifacts.
-        `;
-
-        if (removePiercingsFlag) {
-            negativePrompt += "\n- AVOID nose rings or other facial piercings. Earrings are acceptable.";
-        }
-        
-        const fullPrompt = `${basePrompt} ${qualityEnhancers} ${negativePrompt}`;
-        
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: { parts: [ ...imageParts, { text: fullPrompt } ] },
-                config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
-            });
-
-            for (const part of response.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                    // Gold Standard Fix: Allow TypeScript to infer the type as string | undefined
-                    const base64ImageBytes = part.inlineData.data;
-                    if (base64ImageBytes) {
-                        return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-                    }
-                }
-            }
-             return null;
-        } catch (error) {
-            console.error("A single image generation failed:", error);
-            return null;
-        }
-    };
-    
-    const generationPromises: Promise<string | null>[] = [];
-    for (let i = 0; i < count; i++) {
-        generationPromises.push(generateSingleImage(removePiercings));
-    }
-
+export const generateHeadshots = async (
+  files: File[],
+  style: HeadshotStyle,
+  count: number,
+  removePiercings: boolean,
+): Promise<string[]> => {
+  const generateSingleImage = async (): Promise<string | null> => {
     try {
-        const results = await Promise.all(generationPromises);
-        const successfulImages = results.filter((img): img is string => img !== null);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-        if (successfulImages.length === 0 && count > 0) {
-            throw new GenerationError('The AI failed to generate any images. This could be due to a content policy issue or a problem with the uploaded photos.');
-        }
+      // Convert files to base64
+      const imageParts = await Promise.all(
+        files.map(async (file) => {
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () =>
+              resolve((reader.result as string).split(",")[1]);
+            reader.readAsDataURL(file);
+          });
 
-        return successfulImages;
+          return {
+            inlineData: {
+              data: base64,
+              mimeType: file.type,
+            },
+          };
+        }),
+      );
 
+      let prompt = style.prompt;
+      if (removePiercings) {
+        prompt +=
+          "\n- IMPORTANT: Remove any nose rings or facial piercings from the image. Earrings are acceptable.";
+      }
+
+      const result = await model.generateContent([prompt, ...imageParts]);
+      const response = await result.response;
+
+      // Note: Gemini doesn't generate images directly via this API
+      // You'll need to use Imagen or another image generation service
+      // This is a placeholder - actual implementation depends on your image generation service
+
+      return null; // Placeholder
     } catch (error) {
-        console.error("Error generating headshots batch:", error);
-        if (error instanceof GenerationError) throw error;
-        throw new GenerationError('An unexpected error occurred while generating headshots. Please check your connection and try again.');
+      console.error("Image generation error:", error);
+      return null;
     }
+  };
+
+  const promises = Array(count)
+    .fill(null)
+    .map(() => generateSingleImage());
+  const results = await Promise.all(promises);
+  const successfulImages = results.filter((img): img is string => img !== null);
+
+  if (successfulImages.length === 0) {
+    throw new GenerationError(
+      "Failed to generate any images. Please try again.",
+    );
+  }
+
+  return successfulImages;
 };

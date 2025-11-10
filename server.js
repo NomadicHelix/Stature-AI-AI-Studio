@@ -5,8 +5,11 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 // Initialize Firebase Admin SDK
-// This will automatically use the correct credentials in the App Hosting environment.
-admin.initializeApp();
+// The service account key will be automatically provided in the
+// environment of your App Hosting backend.
+admin.initializeApp({
+  credential: admin.credential.cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+});
 
 const app = express();
 const port = process.env.PORT || 8080;

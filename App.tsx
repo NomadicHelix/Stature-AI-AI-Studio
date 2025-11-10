@@ -4,7 +4,6 @@ import { auth, db } from "./firebaseConfig";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getErrorMessage } from "./utils";
-import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 
 // COMPONENT IMPORTS
 import LandingPage from "./components/LandingPage";
@@ -264,14 +263,7 @@ const AppContent = () => {
 //  ROOT COMPONENT (App)
 // ============================================================================
 export default function App() {
-  const initialOptions = {
-    clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "sb",
-    currency: "USD",
-    intent: "capture",
-  };
   return (
-    <PayPalScriptProvider options={initialOptions}>
-      <AppContent />
-    </PayPalScriptProvider>
+    <AppContent />
   );
 }

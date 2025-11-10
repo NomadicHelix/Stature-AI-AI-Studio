@@ -5,8 +5,11 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 // Initialize Firebase Admin SDK
-// This will automatically use the correct credentials in the App Hosting environment.
-admin.initializeApp();
+// The service account key will be automatically provided in the
+// environment of your App Hosting backend.
+admin.initializeApp({
+  credential: admin.credential.cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+});
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -15,7 +18,7 @@ app.use(cors({ origin: true }));
 app.use(express.json());
 
 // ============================================================================
-//  API Middleware & Routes (No changes needed here)
+//  API Middleware & Routes
 // ============================================================================
 
 const verifyUser = async (req, res, next) => {
@@ -117,7 +120,10 @@ const __dirname = path.dirname(__filename);
 const staticDir = path.join(__dirname, 'dist');
 
 app.use(express.static(staticDir));
-app.get('*', (req, res) => {
+
+// This is the definitive catch-all for the frontend SPA.
+// It serves index.html for any path that is not an API route or a static file.
+app.get(/^(?!\/api).*$/, (req, res) => {
     res.sendFile(path.join(staticDir, 'index.html'));
 });
 

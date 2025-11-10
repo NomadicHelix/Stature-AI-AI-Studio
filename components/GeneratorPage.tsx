@@ -616,7 +616,7 @@ const GeneratorPage = ({
     setRemovePiercings(piercings);
     setStep(AppStep.GENERATING);
 
-    const filesToProcess = uploaded_files.map((f) => f.file);
+    const filesToProcess = uploadedFiles.map((f) => f.file);
     let allGeneratedImages: GeneratedImage[] = [];
 
     const imagesPerStyle = Math.floor(count / styles.length);
@@ -697,7 +697,7 @@ const GeneratorPage = ({
           );
         }
         return <GeneratingView message={loadingMessage} />;
-      case App.GALLERY:
+      case AppStep.GALLERY:
         return <Gallery images={generatedImages} onReset={handleReset} />;
       default:
         return (

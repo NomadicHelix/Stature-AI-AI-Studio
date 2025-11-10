@@ -7,11 +7,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
 
   return {
-    // The server configuration is now simplified to allow
-    // Firebase Studio's integrated proxy to handle API requests.
     server: {
       port: 3000,
       host: "0.0.0.0",
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        }
+      }
     },
     plugins: [react(), tailwindcss()],
     define: {

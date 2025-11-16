@@ -3,13 +3,40 @@ import cors from 'cors';
 import admin from 'firebase-admin';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import fs from 'fs'; // Import the file system module
 
-// Initialize Firebase Admin SDK
-// The service account key will be automatically provided in the
-// environment of your App Hosting backend.
-admin.initializeApp({
-  credential: admin.credential.cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
-});
+// --- Smart Firebase Admin SDK Initialization ---
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// K_SERVICE is a standard env var set in Google Cloud environments like App Hosting.
+// Its presence indicates a deployed environment.
+if (process.env.K_SERVICE) {
+  // In the deployed environment, the SDK will automatically find the service account credentials.
+  admin.initializeApp();
+} else {
+  // In the local environment, we load the service account key from a local file.
+  try {
+    const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+    
+    if (!fs.existsSync(serviceAccountPath)) {
+        throw new Error("serviceAccountKey.json not found. Please add it to the project root for local development.");
+    }
+
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("Firebase Admin SDK initialized for local development.");
+  } catch (error) {
+    console.error('Error initializing Firebase Admin SDK for local development:', error.message);
+    process.exit(1); // Exit if local initialization fails
+  }
+}
+// --- End of Initialization Logic ---
+
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -35,7 +62,7 @@ const verifyUser = async (req, res, next) => {
 
 const verifyAdmin = async (req, res, next) => {
     const idToken = req.headers.authorization?.split("Bearer ")[1];
-    if (!idToken) return res.status(403).json({ error: "Unauthorized." });
+    if (!idToken) return res.status(403).json({ error: "Forbidden." });
     try {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         if (decodedToken.admin) {
@@ -115,8 +142,6 @@ app.use('/api', apiRouter);
 //  Serve Frontend
 // ============================================================================
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const staticDir = path.join(__dirname, 'dist');
 
 app.use(express.static(staticDir));

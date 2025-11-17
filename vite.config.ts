@@ -1,37 +1,27 @@
 import path from "path";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-export default defineConfig(({ mode }) => {
-  // Explicitly load variables from .env files in the project root.
-  // process.cwd() ensures it looks in the correct directory.
-  // This is more robust than relying on default behavior which seems to be failing.
-  const env = loadEnv(mode, process.cwd(), '');
-
-  return {
-    server: {
-      port: 3000,
-      host: "0.0.0.0",
-      proxy: {
-        '/api': {
-          target: 'http://localhost:8080',
-          changeOrigin: true,
-        },
-      },
+// Standard Vite configuration.
+// The complex 'define' and 'loadEnv' logic has been removed as it is no longer needed.
+// The frontend code no longer handles API keys directly.
+export default defineConfig({
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+    // The proxy is still useful for local development, so we keep it.
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      }
+    }
+  },
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "."),
     },
-    plugins: [react(), tailwindcss()],
-    resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "."),
-      },
-    },
-    // The 'define' option performs a direct text replacement.
-    // This will find 'import.meta.env.VITE_GEMINI_API_KEY' in your code
-    // and replace it with the value loaded from your .env file, ensuring it is
-    // available and preventing the app from crashing.
-    define: {
-      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
-    },
-  };
+  },
 });

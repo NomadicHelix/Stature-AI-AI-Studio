@@ -193,6 +193,8 @@ const PhotoUploader = ({
 const StyleSelector = ({
   userPackage,
   onStylesSelected,
+  profession,
+  setProfession,
   removePiercings,
   setRemovePiercings,
 }: {
@@ -200,12 +202,13 @@ const StyleSelector = ({
   onStylesSelected: (
     styles: HeadshotStyle[],
     count: number,
-    removePiercings: boolean,
+    piercings: boolean
   ) => void;
+  profession: string;
+  setProfession: (p: string) => void;
   removePiercings: boolean;
   setRemovePiercings: (val: boolean) => void;
 }) => {
-  const [profession, setProfession] = useState("");
   const [suggestion, setSuggestion] = useState<HeadshotStyle | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<HeadshotStyle[]>([]);
@@ -217,9 +220,17 @@ const StyleSelector = ({
   const handleSuggestion = async () => {
     if (!profession) return;
     setIsLoading(true);
-    const suggested = await suggestStyle(profession);
-    setSuggestion(suggested);
-    setIsLoading(false);
+    try {
+        const suggested = await suggestStyle(profession);
+        // Find the full style object from our STYLES constant
+        const matchingStyle = STYLES.find(s => s.name.toLowerCase() === suggested.name.toLowerCase());
+        setSuggestion(matchingStyle || null);
+    } catch (error) {
+        console.error("Failed to get style suggestion:", error);
+        setSuggestion(null); // Clear suggestion on error
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleStyleClick = (style: HeadshotStyle) => {
@@ -548,17 +559,20 @@ const Gallery = ({
   );
 };
 
-const CreditsDisplay = ({ credits }: { credits: number }) => (
-  <div className="bg-brand-gray/50 border border-brand-primary/20 rounded-lg p-4 flex items-center justify-between mb-8">
-    <div>
-      <p className="text-gray-400 text-sm">Credits Remaining</p>
-      <p className="text-2xl font-bold text-white">{credits}</p>
+const CreditsDisplay = ({ credits, onBuyMore }: { credits: number, onBuyMore: () => void }) => (
+    <div className="bg-brand-gray/50 border border-brand-primary/20 rounded-lg p-4 flex items-center justify-between mb-8">
+      <div>
+        <p className="text-gray-400 text-sm">Credits Remaining</p>
+        <p className="text-2xl font-bold text-white">{credits}</p>
+      </div>
+      <button 
+        onClick={onBuyMore}
+        className="bg-brand-primary text-brand-dark font-semibold py-2 px-5 rounded-lg hover:bg-brand-secondary transition-colors"
+      >
+        Buy More Credits
+      </button>
     </div>
-    <button className="bg-brand-primary text-brand-dark font-semibold py-2 px-5 rounded-lg hover:bg-brand-secondary transition-colors">
-      Buy More Credits
-    </button>
-  </div>
-);
+  );
 
 // ============================================================================
 //  GeneratorPage Main Component
@@ -567,12 +581,15 @@ const CreditsDisplay = ({ credits }: { credits: number }) => (
 const GeneratorPage = ({
   user,
   userPackage,
+  onBuyMore,
 }: {
   user: User | null;
   userPackage: Package | null;
+  onBuyMore: () => void;
 }) => {
   const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
   const [uploadedFiles, setUploadedFiles] = useState<UploadFile[]>([]);
+  const [profession, setProfession] = useState("");
   const [selectedStyles, setSelectedStyles] = useState<HeadshotStyle[]>([]);
   const [imageCount, setImageCount] = useState(0);
   const [removePiercings, setRemovePiercings] = useState(true);
@@ -610,6 +627,11 @@ const GeneratorPage = ({
     count: number,
     piercings: boolean,
   ) => {
+    if (!profession) {
+        setGenerationError("Please specify your profession before generating headshots.");
+        setStep(AppStep.STYLE); // Go back to style selection to fix it
+        return;
+    }
     setGenerationError(null);
     setSelectedStyles(styles);
     setImageCount(count);
@@ -635,6 +657,7 @@ const GeneratorPage = ({
         const images = await generateHeadshots(
           filesToProcess,
           style,
+          profession,
           countsPerStyle[index],
           piercings,
         );
@@ -655,6 +678,7 @@ const GeneratorPage = ({
 
   const handleReset = () => {
     setUploadedFiles([]);
+    setProfession("");
     setSelectedStyles([]);
     setGeneratedImages([]);
     setGenerationError(null);
@@ -676,6 +700,8 @@ const GeneratorPage = ({
           <StyleSelector
             userPackage={userPackage}
             onStylesSelected={handleStylesSelected}
+            profession={profession}
+            setProfession={setProfession}
             removePiercings={removePiercings}
             setRemovePiercings={setRemovePiercings}
           />
@@ -712,7 +738,7 @@ const GeneratorPage = ({
 
   return (
     <div className="py-12">
-      {user && <CreditsDisplay credits={user.credits} />}
+      {user && <CreditsDisplay credits={user.credits} onBuyMore={onBuyMore} />}
       <div className="mb-16 flex justify-center">
         <Stepper currentStep={step} />
       </div>

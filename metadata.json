@@ -1,0 +1,5 @@
+{
+  "name": "Stature-AI",
+  "description": "An AI-powered application to generate professional headshots from your photos. Upload your images, choose a style with help from our AI agent, and receive a gallery of high-quality headshots.",
+  "requestFramePermissions": []
+}
